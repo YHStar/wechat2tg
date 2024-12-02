@@ -8,3 +8,5 @@ dist
 storage/**
 logs
 .github
+.env
+.package-lock.json
