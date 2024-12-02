@@ -1,43 +1,43 @@
-import {Context, Markup, NarrowedContext, session, Telegraf} from 'telegraf'
-import {WeChatClient} from './WechatClient'
-import {config, useProxy} from '../config'
-import {SocksProxyAgent} from 'socks-proxy-agent'
-import {HttpsProxyAgent} from 'https-proxy-agent'
+import { Context, Markup, NarrowedContext, session, Telegraf } from 'telegraf'
+import { WeChatClient } from './WechatClient'
+import { config, useProxy } from '../config'
+import { SocksProxyAgent } from 'socks-proxy-agent'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 // eslint-disable-next-line @typescript-eslint/ban-ts-comment
 import * as tg from 'telegraf/src/core/types/typegram'
-import {message} from 'telegraf/filters'
-import {FileBox, FileBoxType} from 'file-box'
+import { message } from 'telegraf/filters'
+import { FileBox, FileBoxType } from 'file-box'
 import * as fs from 'node:fs'
-import {NotionListType, NotionMode, StorageSettings, VariableContainer, VariableType} from '../model/Settings'
-import {ConverterHelper} from '../util/FfmpegUtils'
-import {SelectedEntity} from '../model/TgCache'
-import {TalkerEntity} from '../model/TalkerCache'
-import {UniqueIdGenerator} from '../util/IdUtils'
-import {Page} from '../model/Page'
-import {FileUtils} from '../util/FileUtils'
-import {ContactImpl, ContactInterface, MessageInterface, RoomInterface} from 'wechaty/impls'
-import {CacheHelper} from '../util/CacheHelper'
+import { NotionListType, NotionMode, StorageSettings, VariableContainer, VariableType } from '../model/Settings'
+import { ConverterHelper } from '../util/FfmpegUtils'
+import { SelectedEntity } from '../model/TgCache'
+import { TalkerEntity } from '../model/TalkerCache'
+import { UniqueIdGenerator } from '../util/IdUtils'
+import { Page } from '../model/Page'
+import { FileUtils } from '../util/FileUtils'
+import { ContactImpl, ContactInterface, MessageInterface, RoomInterface } from 'wechaty/impls'
+import { CacheHelper } from '../util/CacheHelper'
 import * as PUPPET from 'wechaty-puppet'
-import {TelegramClient} from './TelegramClient'
-import {BindItemService} from '../service/BindItemService'
-import {RoomItem} from '../model/RoomItem'
-import {ContactItem} from '../model/ContactItem'
-import {BindItem} from '../model/BindItem'
-import {UserAuthParams} from 'telegram/client/auth'
-import {EventEmitter} from 'node:events'
-import {TelegramUserClient} from './TelegramUserClient'
+import { TelegramClient } from './TelegramClient'
+import { BindItemService } from '../service/BindItemService'
+import { RoomItem } from '../model/RoomItem'
+import { ContactItem } from '../model/ContactItem'
+import { BindItem } from '../model/BindItem'
+import { UserAuthParams } from 'telegram/client/auth'
+import { EventEmitter } from 'node:events'
+import { TelegramUserClient } from './TelegramUserClient'
 import BaseClient from '../base/BaseClient'
-import {MessageService} from '../service/MessageService'
-import {MessageSender} from '../message/MessageSender'
-import {SenderFactory} from '../message/SenderFactory'
-import {SimpleMessageSendQueueHelper} from '../util/SimpleMessageSendQueueHelper'
-import {SimpleMessageSender} from '../model/Message'
+import { MessageService } from '../service/MessageService'
+import { MessageSender } from '../message/MessageSender'
+import { SenderFactory } from '../message/SenderFactory'
+import { SimpleMessageSendQueueHelper } from '../util/SimpleMessageSendQueueHelper'
+import { SimpleMessageSender } from '../model/Message'
 import sharp from 'sharp'
-import {OfficialOrderService} from '../service/OfficialOrderService'
-import {Snowflake} from 'nodejs-snowflake'
-import {SetupServiceImpl} from '../service/impl/SetupServiceImpl'
-import {Entity} from 'telegram/define'
-import {ImageUtils} from '../util/ImageUtils'
+import { OfficialOrderService } from '../service/OfficialOrderService'
+import { Snowflake } from 'nodejs-snowflake'
+import { SetupServiceImpl } from '../service/impl/SetupServiceImpl'
+import { Entity } from 'telegram/define'
+import { ImageUtils } from '../util/ImageUtils'
 
 export class TelegramBotClient extends BaseClient {
     get currentOrder(): string | undefined {
@@ -92,15 +92,17 @@ export class TelegramBotClient extends BaseClient {
     private readonly _bot: Telegraf
     private _chatId: number | string
     private _ownerId: number
+    //test
+    private _otherid: number[] = []
     private loginCommandExecuted = false
     private static PAGE_SIZE = 18
     private static LINES = 2
-    private _selectedMember: SelectedEntity [] = []
+    private _selectedMember: SelectedEntity[] = []
     private _flagPinMessageType = ''
     private calcShowMemberListExecuted = false
     private snowflakeUtil = new Snowflake()
     private selectRoom: ContactInterface | RoomInterface | undefined
-    private _recentUsers: TalkerEntity [] = []
+    private _recentUsers: TalkerEntity[] = []
     private wechatStartFlag = false
     private _currentOrder: undefined | string = undefined
     private searchList: any[] = []
@@ -260,6 +262,9 @@ export class TelegramBotClient extends BaseClient {
 
         this.loadForwardSettings()
 
+        //test
+        this.loadOtherID()
+
         // language
         const language = this.forwardSetting.getVariable(VariableType.SETTING_LANGUAGE)
         this.setLanguage(language)
@@ -301,28 +306,28 @@ export class TelegramBotClient extends BaseClient {
 
     private onBotCommand(bot: Telegraf) {
         this._commands = [
-            {command: 'help', description: this.t('command.description.help')},
-            {command: 'start', description: this.t('command.description.start')},
-            {command: 'login', description: this.t('command.description.login')},
-            {command: 'lang', description: this.t('command.description.lang')},
-            {command: 'user', description: this.t('command.description.user')},
-            {command: 'room', description: this.t('command.description.room')},
-            {command: 'recent', description: this.t('command.description.recent')},
-            {command: 'settings', description: this.t('command.description.settings')},
-            {command: 'bind', description: this.t('command.description.bind')},
-            {command: 'unbind', description: this.t('command.description.unbind')},
-            {command: 'order', description: this.t('command.description.order')},
-            {command: 'cgdata', description: this.t('command.description.cgdata')},
-            {command: 'gs', description: this.t('command.description.gs')},
-            {command: 'source', description: this.t('command.description.source')},
+            { command: 'help', description: this.t('command.description.help') },
+            { command: 'start', description: this.t('command.description.start') },
+            { command: 'login', description: this.t('command.description.login') },
+            { command: 'lang', description: this.t('command.description.lang') },
+            { command: 'user', description: this.t('command.description.user') },
+            { command: 'room', description: this.t('command.description.room') },
+            { command: 'recent', description: this.t('command.description.recent') },
+            { command: 'settings', description: this.t('command.description.settings') },
+            { command: 'bind', description: this.t('command.description.bind') },
+            { command: 'unbind', description: this.t('command.description.unbind') },
+            { command: 'order', description: this.t('command.description.order') },
+            { command: 'cgdata', description: this.t('command.description.cgdata') },
+            { command: 'gs', description: this.t('command.description.gs') },
+            { command: 'source', description: this.t('command.description.source') },
             // todo 暂未实现
             // {command: 'aad', description: this.t('command.description.aad')},
             // {command: 'als', description: this.t('command.description.als')},
             // {command: 'arm', description: this.t('command.description.arm')},
-            {command: 'reset', description: this.t('command.description.reset')},
-            {command: 'rcc', description: this.t('command.description.rcc')},
-            {command: 'stop', description: this.t('command.description.stop')},
-            {command: 'check', description: this.t('command.description.check')},
+            { command: 'reset', description: this.t('command.description.reset') },
+            { command: 'rcc', description: this.t('command.description.rcc') },
+            { command: 'stop', description: this.t('command.description.stop') },
+            { command: 'check', description: this.t('command.description.check') },
         ]
         if (config.API_ID && config.API_HASH) {
             // 启动tg client
@@ -334,7 +339,7 @@ export class TelegramBotClient extends BaseClient {
                 this.telegramApiSender = new SenderFactory().createSender(this._tgClient.client)
             }
             // 设置command
-            this._commands.push({command: 'autocg', description: this.t('command.description.autocg')})
+            this._commands.push({ command: 'autocg', description: this.t('command.description.autocg') })
         } else {
             this.forwardSetting.setVariable(VariableType.SETTING_AUTO_GROUP, false)
             // 修改后持成文件
@@ -356,8 +361,13 @@ export class TelegramBotClient extends BaseClient {
                 return next()
             }
 
-            if (ctx.chat && ctx.chat.type.includes('group') && ctx.message && ctx.message.from.id === this._chatId) {
-                return next()
+            if (ctx.chat && ctx.chat.type.includes('group') && ctx.message) {
+                if (ctx.message.from.id === this._chatId) return next()
+                var j
+                for (j in this._otherid) {
+                    if (ctx.message.from.id === this._otherid[j]) return next()
+                }
+
             }
 
             if (ctx.chat && ctx.chat.type.includes('group') && ctx.callbackQuery && ctx.callbackQuery.from.id === this._chatId) {
@@ -403,7 +413,7 @@ export class TelegramBotClient extends BaseClient {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            {text: this.t('common.clickChange'), callback_data: VariableType.SETTING_AUTO_GROUP},
+                            { text: this.t('common.clickChange'), callback_data: VariableType.SETTING_AUTO_GROUP },
                         ]
                     ]
                 }
@@ -432,7 +442,7 @@ export class TelegramBotClient extends BaseClient {
                 })
                 return
             }
-            const message = await this._weChatClient.client.Message.find({id: messageObj.wechat_message_id})
+            const message = await this._weChatClient.client.Message.find({ id: messageObj.wechat_message_id })
             if (!message) {
                 await ctx.reply(this.t('common.messageExpire'), {
                     reply_parameters: {
@@ -460,7 +470,7 @@ export class TelegramBotClient extends BaseClient {
                         filename: fileName,
                         fileType: 'document',
                         caption: identityStr
-                    }, {parse_mode: 'HTML', reply_id: msgId}).catch(e => {
+                    }, { parse_mode: 'HTML', reply_id: msgId }).catch(e => {
                         ctx.reply(this.t('command.source.fail'), {
                             reply_parameters: {
                                 message_id: msgId
@@ -499,12 +509,12 @@ export class TelegramBotClient extends BaseClient {
             const orderList = await this._officialOrderService.getAllOrder()
             for (const officialOrder of orderList) {
                 keyboard.push([
-                    {text: officialOrder.order_name, callback_data: 'o-' + officialOrder.id}
+                    { text: officialOrder.order_name, callback_data: 'o-' + officialOrder.id }
                 ])
             }
             keyboard.push([
-                {text: this.t('command.order.addOrder'), callback_data: 'add-order-1'},
-                {text: this.t('command.order.removeOrder'), callback_data: 'remove-order'},
+                { text: this.t('command.order.addOrder'), callback_data: 'add-order-1' },
+                { text: this.t('command.order.removeOrder'), callback_data: 'remove-order' },
             ])
             ctx.reply(this.t('command.order.sendOrder'), {
                 reply_markup: {
@@ -548,7 +558,7 @@ export class TelegramBotClient extends BaseClient {
             const orderList = await this._officialOrderService.getAllOrder()
             for (const officialOrder of orderList) {
                 keyboard.push([
-                    {text: officialOrder.order_name, callback_data: 'r-' + officialOrder.id}
+                    { text: officialOrder.order_name, callback_data: 'r-' + officialOrder.id }
                 ])
             }
             ctx.reply(this.t('command.order.removeOrderHint'), {
@@ -677,7 +687,7 @@ export class TelegramBotClient extends BaseClient {
             if (ctx.chat && ctx.chat.type.includes('group')) {
                 this.bindItemService.getBindItemByChatId(ctx.chat.id).then(bindItem => {
                     const forward = Number(bindItem.forward) === 1 ? 0 : 1
-                    this.bindItemService.updateBindItem(ctx.chat.id.toString(), {forward: forward})
+                    this.bindItemService.updateBindItem(ctx.chat.id.toString(), { forward: forward })
                     ctx.reply(this.t('common.gs',
                         forward === 1 ? this.t('common.open') : this.t('common.close')))
                 })
@@ -745,9 +755,9 @@ export class TelegramBotClient extends BaseClient {
             if (ctx.chat && ctx.chat.type.includes('group')) {
                 this.bindItemService.getBindItemByChatId(ctx.chat.id).then(bindItem => {
                     const wechatId = bindItem.wechat_id
-                    this.weChatClient.client.Contact.find({id: wechatId}).then(async contact => {
+                    this.weChatClient.client.Contact.find({ id: wechatId }).then(async contact => {
                         await contact?.sync()
-                        const copyBindItem = {...bindItem}
+                        const copyBindItem = { ...bindItem }
                         copyBindItem.name = contact?.name()
                         copyBindItem.alias = await contact?.alias()
                         copyBindItem.avatar = contact?.payload.avatar
@@ -760,7 +770,7 @@ export class TelegramBotClient extends BaseClient {
                 const updateBindItem = async (contact: ContactInterface) => {
                     this.bindItemService.getBindItemByWechatId(contact.id).then(async bindItem => {
                         if (bindItem.chat_id) {
-                            const copyBindItem = {...bindItem}
+                            const copyBindItem = { ...bindItem }
                             copyBindItem.name = contact?.name()
                             copyBindItem.alias = await contact?.alias()
                             copyBindItem.avatar = contact?.payload.avatar
@@ -772,7 +782,7 @@ export class TelegramBotClient extends BaseClient {
                 }
                 if (ctx.args.length > 0) {
                     ctx.args.forEach(name => {
-                        this.weChatClient.client.Contact.findAll({name: name}).then(contacts => {
+                        this.weChatClient.client.Contact.findAll({ name: name }).then(contacts => {
                             contacts.filter(it => it.name() && it.friend()).forEach(async contact => {
                                 await contact?.sync()
                                 await updateBindItem(contact)
@@ -810,8 +820,8 @@ export class TelegramBotClient extends BaseClient {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            {text: '中文', callback_data: 'lang-zh'},
-                            {text: 'English', callback_data: 'lang-en'}
+                            { text: '中文', callback_data: 'lang-zh' },
+                            { text: 'English', callback_data: 'lang-en' }
                         ]
                     ]
                 }
@@ -838,7 +848,7 @@ export class TelegramBotClient extends BaseClient {
         })
         // 选择群聊
         const currentSelectRoomMap = new Map<string, RoomItem>()
-        let searchRooms: RoomItem [] = []
+        let searchRooms: RoomItem[] = []
         bot.command('room', async ctx => {
             if (!this.wechatStartFlag || !this._weChatClient.client.isLoggedIn) {
                 await ctx.reply(this.t('common.plzLoginWeChat'))
@@ -1114,9 +1124,16 @@ export class TelegramBotClient extends BaseClient {
             }
 
             // 群组消息,判断是否转发
+            //test
             const bind = await this.bindItemService.getBindItemByChatId(ctx?.message?.chat.id)
+            var j, other = 0
+            for (j in this._otherid) {
+                if (ctx.message.from.id === this._otherid[j]) other = 1
+            }
             const forwardMessage = ctx.chat?.type.includes('group') &&
                 (ctx.message?.from.id === this._chatId
+                    //test
+                    || other
                     || (Array.isArray(bind?.allow_entities)
                         && bind?.allow_entities.includes(ctx?.message?.from?.id.toString())))
             if (forwardMessage) {
@@ -1142,7 +1159,7 @@ export class TelegramBotClient extends BaseClient {
 
                 if (weChatMessageId) {
                     // 添加或者移除名单
-                    this.weChatClient.client.Message.find({id: weChatMessageId}).then(message => {
+                    this.weChatClient.client.Message.find({ id: weChatMessageId }).then(message => {
                         if (!message) {
                             ctx.reply(this.t('common.sendFail'), {
                                 reply_parameters: {
@@ -1175,10 +1192,16 @@ export class TelegramBotClient extends BaseClient {
                         // this.lock.release()
                         return
                     }
+
+                    //test
+                    // 获取发消息人的昵称
+                    let forwardText = text;
+                    const senderName = ctx.message.from.first_name || ctx.message.from.username || 'Unknown';
+                    forwardText = `From ${senderName}:\n${forwardText}`;  // 将昵称添加到消息前
                     if (bindItem.type === 0) {
                         const contact = await this.getContactByBindItem(bindItem)
                         if (contact) {
-                            this.weChatClient.addMessage(contact, text, {
+                            this.weChatClient.addMessage(contact, forwardText, {
                                 chat_id: chatId,
                                 msg_id: msgId
                             })
@@ -1186,7 +1209,7 @@ export class TelegramBotClient extends BaseClient {
                     } else {
                         const room = await this.getRoomByBindItem(bindItem)
                         if (room) {
-                            this.weChatClient.addMessage(room, text, {
+                            this.weChatClient.addMessage(room, forwardText, {
                                 chat_id: chatId,
                                 msg_id: msgId
                             })
@@ -1308,23 +1331,23 @@ export class TelegramBotClient extends BaseClient {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            {text: '1', callback_data: 'num-1'},
-                            {text: '2', callback_data: 'num-2'},
-                            {text: '3', callback_data: 'num-3'},
+                            { text: '1', callback_data: 'num-1' },
+                            { text: '2', callback_data: 'num-2' },
+                            { text: '3', callback_data: 'num-3' },
                         ],
                         [
-                            {text: '4', callback_data: 'num-4'},
-                            {text: '5', callback_data: 'num-5'},
-                            {text: '6', callback_data: 'num-6'},
+                            { text: '4', callback_data: 'num-4' },
+                            { text: '5', callback_data: 'num-5' },
+                            { text: '6', callback_data: 'num-6' },
                         ],
                         [
-                            {text: '7', callback_data: 'num-7'},
-                            {text: '8', callback_data: 'num-8'},
-                            {text: '9', callback_data: 'num-9'},
+                            { text: '7', callback_data: 'num-7' },
+                            { text: '8', callback_data: 'num-8' },
+                            { text: '9', callback_data: 'num-9' },
                         ],
                         [
-                            {text: '0', callback_data: 'num-0'},
-                            {text: 'Del', callback_data: 'num-100'},
+                            { text: '0', callback_data: 'num-0' },
+                            { text: 'Del', callback_data: 'num-100' },
                         ]
                     ]
                 }
@@ -1359,7 +1382,7 @@ export class TelegramBotClient extends BaseClient {
                 reply_markup: {
                     inline_keyboard: [
                         [
-                            {text: this.t('common.clickChange'), callback_data: VariableType.SETTING_AUTO_GROUP},
+                            { text: this.t('common.clickChange'), callback_data: VariableType.SETTING_AUTO_GROUP },
                         ]
                     ]
                 }
@@ -1580,7 +1603,7 @@ export class TelegramBotClient extends BaseClient {
                 await ctx.answerCbQuery(this.t('common.messageExpire'))
                 return
             }
-            const message = await this._weChatClient.client.Message.find({id: messageObj.wechat_message_id})
+            const message = await this._weChatClient.client.Message.find({ id: messageObj.wechat_message_id })
             if (!message) {
                 await ctx.answerCbQuery(this.t('common.messageExpire'))
                 return
@@ -1615,7 +1638,7 @@ export class TelegramBotClient extends BaseClient {
                                     filename: fileName,
                                     fileType: this._weChatClient.getSendTgFileMethodString(messageType),
                                     caption: identityStr
-                                }, {parse_mode: 'HTML'}).catch(e => {
+                                }, { parse_mode: 'HTML' }).catch(e => {
                                     ctx.answerCbQuery(this.t('common.failReceive'))
                                     this.weChatClient.editSendFailButton(chatId, msgId, this.t('wechat.fileReceivingFailed'))
                                     return
@@ -1628,7 +1651,7 @@ export class TelegramBotClient extends BaseClient {
                             filename: fileName,
                             fileType: 'document',
                             caption: identityStr
-                        }, {parse_mode: 'HTML'}).catch(e => {
+                        }, { parse_mode: 'HTML' }).catch(e => {
                             ctx.answerCbQuery(this.t('common.failReceive'))
                             return
                         })
@@ -1888,7 +1911,7 @@ export class TelegramBotClient extends BaseClient {
             ctx.deleteMessage()
             if (ctx.chat && ctx.chat.type.includes('group')) {
                 const id = ctx.match.input !== 'filehelper' ? '@' + ctx.match.input : 'filehelper'
-                const contact = await this._weChatClient.client.Contact.find({id: id})
+                const contact = await this._weChatClient.client.Contact.find({ id: id })
                 // 用户绑定
                 if (contact) {
                     let list
@@ -1918,7 +1941,7 @@ export class TelegramBotClient extends BaseClient {
                 return
             }
             const id = ctx.match.input !== 'filehelper' ? '@' + ctx.match.input : 'filehelper'
-            this._currentSelectContact = await this._weChatClient.client.Contact.find({id: id})
+            this._currentSelectContact = await this._weChatClient.client.Contact.find({ id: id })
             const reply = await this._currentSelectContact?.alias() || this._currentSelectContact?.name()
             if (this._currentSelectContact?.type() === PUPPET.types.Contact.Official) {
                 this.setPin('official', reply ? reply : '')
@@ -1930,7 +1953,7 @@ export class TelegramBotClient extends BaseClient {
     }
 
     private setAlias(weChatMessageId: string, text: string, ctx: any) {
-        this.weChatClient.client.Message.find({id: weChatMessageId}).then(msg => {
+        this.weChatClient.client.Message.find({ id: weChatMessageId }).then(msg => {
             msg?.talker()?.alias(text.substring(6).trimStart()).then(async () => {
                 const cacheContacts = this.weChatClient.contactMap?.get(ContactImpl.Type.Individual)
                 if (cacheContacts) {
@@ -1963,7 +1986,7 @@ export class TelegramBotClient extends BaseClient {
         for (const undoMessageCache of undoMessageCaches) {
             if (undoMessageCache) {
                 // 撤回消息
-                this.weChatClient.client.Message.find({id: undoMessageCache.wx_msg_id})
+                this.weChatClient.client.Message.find({ id: undoMessageCache.wx_msg_id })
                     .then(message => {
                         message?.recall().then((res) => {
                             if (res) {
@@ -2073,23 +2096,23 @@ export class TelegramBotClient extends BaseClient {
                         reply_markup: {
                             inline_keyboard: [
                                 [
-                                    {text: '1', callback_data: 'num-1'},
-                                    {text: '2', callback_data: 'num-2'},
-                                    {text: '3', callback_data: 'num-3'}
+                                    { text: '1', callback_data: 'num-1' },
+                                    { text: '2', callback_data: 'num-2' },
+                                    { text: '3', callback_data: 'num-3' }
                                 ],
                                 [
-                                    {text: '4', callback_data: 'num-4'},
-                                    {text: '5', callback_data: 'num-5'},
-                                    {text: '6', callback_data: 'num-6'}
+                                    { text: '4', callback_data: 'num-4' },
+                                    { text: '5', callback_data: 'num-5' },
+                                    { text: '6', callback_data: 'num-6' }
                                 ],
                                 [
-                                    {text: '7', callback_data: 'num-7'},
-                                    {text: '8', callback_data: 'num-8'},
-                                    {text: '9', callback_data: 'num-9'}
+                                    { text: '7', callback_data: 'num-7' },
+                                    { text: '8', callback_data: 'num-8' },
+                                    { text: '9', callback_data: 'num-9' }
                                 ],
                                 [
-                                    {text: '0', callback_data: 'num-0'},
-                                    {text: 'Del', callback_data: 'num--1'},
+                                    { text: '0', callback_data: 'num-0' },
+                                    { text: 'Del', callback_data: 'num--1' },
                                 ]
                             ]
                         }
@@ -2110,11 +2133,11 @@ export class TelegramBotClient extends BaseClient {
     }
 
     public async getRoomByBindItem(bindItem: BindItem) {
-        return await this.weChatClient.client.Room.find({id: bindItem.wechat_id})
+        return await this.weChatClient.client.Room.find({ id: bindItem.wechat_id })
     }
 
     public async getContactByBindItem(bindItem: BindItem) {
-        return await this.weChatClient.client.Contact.find({id: bindItem.wechat_id})
+        return await this.weChatClient.client.Contact.find({ id: bindItem.wechat_id })
     }
 
     private async botLaunch(bot: Telegraf, retryCount = 5) {
@@ -2130,10 +2153,10 @@ export class TelegramBotClient extends BaseClient {
     }
 
     private async sendGif(saveFile: string, gifFile: string, ctx: any,
-                          lottie_config?: {
-                              width: number,
-                              height: number
-                          }) {
+        lottie_config?: {
+            width: number,
+            height: number
+        }) {
         try {
             if (!fs.existsSync(gifFile)) {
                 if (saveFile.endsWith('.tgs')) {
@@ -2161,7 +2184,7 @@ export class TelegramBotClient extends BaseClient {
                 const weChatMessageId = messageItem.wechat_message_id
                 if (weChatMessageId) {
                     // 添加或者移除名单
-                    this.weChatClient.client.Message.find({id: weChatMessageId}).then(message => {
+                    this.weChatClient.client.Message.find({ id: weChatMessageId }).then(message => {
                         if (!message) {
                             ctx.reply(this.t('common.sendFail'), {
                                 reply_parameters: {
@@ -2280,12 +2303,12 @@ export class TelegramBotClient extends BaseClient {
 
         if (pageNumber != 0) {
             this._bot.action(/(&page:1-next-|&page:1-perv-)(\d+)/, async (ctu) => {
-                buttons = await this.toButtons({ctu: ctu, source: source, code: '&page:1-next-'})
+                buttons = await this.toButtons({ ctu: ctu, source: source, code: '&page:1-next-' })
                 ctu.answerCbQuery()
             })
 
             this._bot.action(/(&page:2-next-|&page:2-perv-)(\d+)/, async (ctu) => {
-                buttons = await this.toButtons({ctu: ctu, source: source, code: '&page:2-next-'})
+                buttons = await this.toButtons({ ctu: ctu, source: source, code: '&page:2-next-' })
                 ctu.answerCbQuery()
             })
         } else {
@@ -2299,12 +2322,12 @@ export class TelegramBotClient extends BaseClient {
 
 
             this._bot.action(/(&page:1-next-|&page:1-perv-)(\d+)/, async (ctu) => {
-                buttons = await this.toButtons({ctu: ctu, source: source1, code: '&page:1-next-'})
+                buttons = await this.toButtons({ ctu: ctu, source: source1, code: '&page:1-next-' })
                 ctu.answerCbQuery()
             })
 
             this._bot.action(/(&page:2-next-|&page:2-perv-)(\d+)/, async (ctu) => {
-                buttons = await this.toButtons({ctu: ctu, source: source2, code: '&page:2-next-'})
+                buttons = await this.toButtons({ ctu: ctu, source: source2, code: '&page:2-next-' })
                 ctu.answerCbQuery()
             })
         }
@@ -2315,7 +2338,7 @@ export class TelegramBotClient extends BaseClient {
 
     }
 
-    private async toButtons({ctu, source, code}: { ctu: any, source: ContactInterface[] | undefined, code: string }) {
+    private async toButtons({ ctu, source, code }: { ctu: any, source: ContactInterface[] | undefined, code: string }) {
         let pageNumber = parseInt(ctu.match[2])
         // const prefix = ctx.match[0].slice(0, 1)
         const direction = ctu.match[1]
@@ -2403,7 +2426,7 @@ export class TelegramBotClient extends BaseClient {
             if (fs.existsSync(ownerFile)) {
                 // 读取文件并设置所有者和聊天 ID
                 const ownerData = fs.readFileSync(ownerFile, 'utf8')
-                const {owner_id, chat_id} = JSON.parse(ownerData)
+                const { owner_id, chat_id } = JSON.parse(ownerData)
                 this._ownerId = owner_id ? owner_id : ctx.from?.id
                 this._chatId = chat_id ? chat_id : ctx.chat?.id
             } else {
@@ -2422,6 +2445,29 @@ export class TelegramBotClient extends BaseClient {
         }
     }
 
+    //test
+    private loadOtherID() {
+        try {
+            const otherFile = `${StorageSettings.STORAGE_FOLDER}/telegram-other.txt`
+            if (!fs.existsSync(otherFile)) {
+                console.error(`文件不存在：${otherFile}`);
+            }
+            const fileContent = fs.readFileSync(otherFile, 'utf8');
+            const other_id = fileContent
+                .split('\n')                  // 按行分割
+                .filter(line => line.trim())  // 去除空行
+                .map(line => {
+                    const number = parseFloat(line.trim());
+                    if (isNaN(number)) {
+                        throw new Error(`Invalid number format: ${line}`);
+                    }
+                    return number;
+                });
+            this._otherid = other_id
+        } catch (error) {
+            this.logError('Error loading other data:', error)
+        }
+    }
 
     private loadForwardSettings() {
         // 没有就创建
@@ -2585,7 +2631,7 @@ export class TelegramBotClient extends BaseClient {
                 id = parseInt(blackList[blackList.length - 1].id) + 1
             }
             if (!find) {
-                blackList.push({id: id + '', name: text})
+                blackList.push({ id: id + '', name: text })
                 this.bot.telegram.sendMessage(this.chatId, this.t('common.addSuccess'))
             }
         } else {
@@ -2597,7 +2643,7 @@ export class TelegramBotClient extends BaseClient {
                 id = parseInt(whiteList[whiteList.length - 1].id) + 1
             }
             if (!find) {
-                whiteList.push({id: id + '', name: text})
+                whiteList.push({ id: id + '', name: text })
                 this.bot.telegram.sendMessage(this.chatId, this.t('common.addSuccess'))
             }
         }
@@ -2647,9 +2693,8 @@ export class TelegramBotClient extends BaseClient {
         // 群组消息,判断是否转发
         const bind = await this.bindItemService.getBindItemByChatId(ctx.message.chat.id)
         const forwardMessage = ctx.chat?.type.includes('group') &&
-            (ctx.message?.from.id === this._chatId
-                || (Array.isArray(bind?.allow_entities)
-                    && bind?.allow_entities.includes(ctx?.message?.from?.id.toString())))
+            ((Array.isArray(bind?.allow_entities)
+                && bind?.allow_entities.includes(ctx?.message?.from?.id.toString())))
         if (forwardMessage) {
             if (bind.forward === 0) {
                 return
@@ -2713,13 +2758,13 @@ export class TelegramBotClient extends BaseClient {
 
                         // 保存带有新元数据的图片
                         sharp(buffer)
-                            .withMetadata({exif: exifData})
+                            .withMetadata({ exif: exifData })
                             .toBuffer()
                             .then(buff => {
                                 this.sendFile(ctx, FileBox.fromBuffer(buff, fileName))
                             }).catch((err) => {
-                            ctx.reply(this.t('common.sendFailMsg', this.t('common.saveOrgFileError')))
-                        })
+                                ctx.reply(this.t('common.sendFailMsg', this.t('common.saveOrgFileError')))
+                            })
                     }).catch(() => ctx.reply(this.t('common.sendFailMsg', this.t('common.saveOrgFileError'))))
                     return
                 }
@@ -2728,7 +2773,7 @@ export class TelegramBotClient extends BaseClient {
                     const nowShangHaiZh = new Date().toLocaleString('zh', {
                         timeZone: 'Asia/ShangHai'
                     }).toString().replaceAll('/', '-')
-                    fileBox = FileBox.fromUrl(fileLink.toString(), {name: `语音-${nowShangHaiZh.toLocaleLowerCase()}.mp3`})
+                    fileBox = FileBox.fromUrl(fileLink.toString(), { name: `语音-${nowShangHaiZh.toLocaleLowerCase()}.mp3` })
                 } else {
                     fileBox = FileBox.fromUrl(fileLink.toString(), ctx.message[fileType].file_name)
                 }
@@ -2760,7 +2805,7 @@ export class TelegramBotClient extends BaseClient {
             const weChatMessageId = messageItem.wechat_message_id
             if (weChatMessageId) {
                 // 添加或者移除名单
-                this.weChatClient.client.Message.find({id: weChatMessageId}).then(message => {
+                this.weChatClient.client.Message.find({ id: weChatMessageId }).then(message => {
                     if (!message) {
                         ctx.reply(this.t('common.sendFail'), {
                             reply_parameters: {
